@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./image-slot.js"></script>
+  <style>
+    body{margin:0}
+    .tl-item{position:relative}
+    .tl-item:last-child .tl-line{display:none}
+    .tl-line{position:absolute;left:5px;top:22px;bottom:-56px;width:2px;background:var(--color-divider)}
+    .tl-dot{position:absolute;left:0;top:6px;width:12px;height:12px;border-radius:50%;background:var(--color-accent);box-shadow:0 0 0 4px var(--color-bg)}
+    .entry-card{transition:transform .2s ease;display:grid;grid-template-columns:300px 1fr}
+    .entry-card:hover{transform:translateY(-2px)}
+    .entry-card > *{min-width:0}
+    .entry-thumb{aspect-ratio:4/3}
+    @media (max-width:640px){
+      .entry-card{grid-template-columns:1fr}
+      .entry-thumb{aspect-ratio:16/10}
+    }
+    .nav{flex-wrap:wrap;row-gap:var(--space-2)}
+    @media (max-width:480px){
+      header.nav{padding:var(--space-4) var(--space-6) !important}
+    }
+  </style>
+</helmet>
+
+<div style="background:var(--color-bg);min-height:100%;color:var(--color-text);font-family:var(--font-body)">
+
+  <header class="nav" style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-8);border-bottom:1px solid var(--color-divider)">
+    <div style="display:flex;align-items:baseline;gap:var(--space-2)">
+      <span class="nav-brand" style="font-family:var(--font-heading);font-size:22px">Bitácora</span>
+      <span class="text-muted" style="font-size:13px">trabajos de arte · media</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:var(--space-4)">
+      <span class="tag tag-accent-2">{{ entryCount }} piezas</span>
+      <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;font-size:13px" class="text-muted">
+        <input type="checkbox" checked="{{ isAdmin }}" onChange="{{ toggleAdmin }}">
+        Modo administrador
+      </label>
+    </div>
+  </header>
+
+  <main style="max-width:760px;margin:0 auto;padding:var(--space-8) var(--space-6) 100px">
+    <sc-if value="{{ showIntro }}" hint-placeholder-val="{{ true }}">
+      <h1 style="font-size:38px;margin:0 0 var(--space-2)">Registro de trabajos</h1>
+      <p class="text-muted" style="max-width:520px;margin:0 0 var(--space-8);font-size:15px">Bitácora visual de piezas realizadas en el semestre, en orden cronológico.</p>
+    </sc-if>
+
+    <div style="display:flex;flex-direction:column;gap:56px;padding-left:var(--space-6)">
+      <sc-for list="{{ entries }}" as="entry" hint-placeholder-count="4">
+        <div class="tl-item" style="padding-left:var(--space-6)">
+          <div class="tl-dot"></div>
+          <div class="tl-line"></div>
+
+          <div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-3)">
+            <span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.04em;color:var(--color-accent-700)">{{ entry.date }}</span>
+            <span class="tag tag-neutral">{{ entry.medium }}</span>
+          </div>
+
+          <div class="entry-card card elev-sm" style="padding:0;overflow:hidden;cursor:pointer;position:relative" onClick="{{ entry.open }}">
+            <div class="washed entry-thumb">
+              <image-slot id="{{ entry.imgId }}" shape="rect" placeholder="{{ entry.placeholder }}" src="{{ entry.img }}" fit="contain"></image-slot>
+            </div>
+            <div style="padding:var(--space-4) var(--space-5);display:flex;flex-direction:column;gap:var(--space-1);justify-content:center">
+              <h3 style="margin:0">{{ entry.title }}</h3>
+              <p class="text-muted" style="margin:0;font-size:14px;line-height:1.5">{{ entry.note }}</p>
+            </div>
+            <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;top:var(--space-3);right:var(--space-3);display:flex;gap:var(--space-2)">
+                <button type="button" class="btn btn-icon btn-secondary" title="Editar" onClick="{{ entry.edit }}">✎</button>
+                <button type="button" class="btn btn-icon btn-secondary" title="Eliminar" onClick="{{ entry.remove }}">✕</button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="margin-top:48px;padding-left:var(--space-6);display:flex;align-items:center;gap:var(--space-2)">
+      <div class="tl-dot" style="position:relative;left:0;top:0;background:var(--color-neutral-400)"></div>
+      <span class="text-muted" style="font-size:13px">Inicio de la bitácora</span>
+    </div>
+  </main>
+
+  <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+    <button type="button" class="btn btn-primary" style="position:fixed;bottom:var(--space-8);right:var(--space-8);border-radius:999px;width:56px;height:56px;font-size:24px;box-shadow:var(--shadow-lg)" title="Añadir trabajo" onClick="{{ openNewForm }}">+</button>
+  </sc-if>
+
+  <sc-if value="{{ activeEntry }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="position:fixed" onClick="{{ closeLightbox }}">
+      <div class="dialog" role="dialog" aria-modal="true" style="max-width:820px;width:min(94vw,820px);padding:0;overflow:hidden" onClick="{{ stopClick }}">
+        <div class="washed" style="max-height:78vh;background:var(--color-surface)">
+          <image-slot id="{{ activeEntry.imgId }}" shape="rect" placeholder="{{ activeEntry.placeholder }}" src="{{ activeEntry.img }}" fit="contain" style="width:100%;height:78vh"></image-slot>
+        </div>
+        <div style="padding:var(--space-5)">
+          <div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-2)">
+            <span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.04em;color:var(--color-accent-700)">{{ activeEntry.date }}</span>
+            <span class="tag tag-neutral">{{ activeEntry.medium }}</span>
+          </div>
+          <div class="dialog-title" style="margin-bottom:var(--space-2)">{{ activeEntry.title }}</div>
+          <div class="dialog-body">{{ activeEntry.note }}</div>
+          <div class="dialog-actions">
+            <button type="button" class="btn btn-secondary" onClick="{{ closeLightbox }}">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ formOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="position:fixed" onClick="{{ closeForm }}">
+      <div class="dialog" role="dialog" aria-modal="true" style="max-width:480px;width:min(92vw,480px)" onClick="{{ stopClick }}">
+        <div class="dialog-title" style="margin-bottom:var(--space-4)">{{ formTitle }}</div>
+        <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+          <div class="washed" style="aspect-ratio:4/3">
+            <image-slot id="{{ formImgId }}" shape="rect" placeholder="Foto o video del trabajo"></image-slot>
+          </div>
+          <div class="field">
+            <label>Título</label>
+            <input class="input" value="{{ formValues.title }}" onChange="{{ setFormField('title') }}">
+          </div>
+          <div class="field">
+            <label>Fecha</label>
+            <input class="input" value="{{ formValues.date }}" onChange="{{ setFormField('date') }}" placeholder="dd mmm aaaa">
+          </div>
+          <div class="field">
+            <label>Medio / técnica</label>
+            <input class="input" value="{{ formValues.medium }}" onChange="{{ setFormField('medium') }}">
+          </div>
+          <div class="field">
+            <label>Descripción</label>
+            <input class="input" value="{{ formValues.note }}" onChange="{{ setFormField('note') }}">
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-secondary" onClick="{{ closeForm }}">Cancelar</button>
+          <button type="button" class="btn btn-primary" onClick="{{ saveForm }}">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ loginOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="position:fixed" onClick="{{ closeLogin }}">
+      <div class="dialog" role="dialog" aria-modal="true" style="max-width:360px;width:min(92vw,360px)" onClick="{{ stopClick }}">
+        <div class="dialog-title" style="margin-bottom:var(--space-4)">Acceso administrador</div>
+        <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+          <div class="field">
+            <label>Usuario</label>
+            <input class="input" value="{{ loginValues.user }}" onChange="{{ setLoginField('user') }}">
+          </div>
+          <div class="field">
+            <label>Contraseña</label>
+            <input class="input" type="password" value="{{ loginValues.pass }}" onChange="{{ setLoginField('pass') }}">
+          </div>
+          <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
+            <p style="margin:0;font-size:13px;color:var(--color-accent-700)">Usuario o contraseña incorrectos.</p>
+          </sc-if>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-secondary" onClick="{{ closeLogin }}">Cancelar</button>
+          <button type="button" class="btn btn-primary" onClick="{{ submitLogin }}">Entrar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    activeIndex: null,
+    isAdmin: false,
+    loginOpen: false,
+    loginValues: { user: "", pass: "" },
+    loginError: false,
+    formOpen: false,
+    editIndex: null,
+    formValues: { title: "", date: "", medium: "", note: "" },
+    nextId: 2,
+    rawEntries: [
+      { date: "16 ago 2026", medium: "Mapa conceptual", title: "Intermedia — Santiago punto cero 0'0", note: "Diagrama de investigación que cruza arte, territorio y espacio urbano: performance, intervención, vida cotidiana y protesta en el Santiago punto cero, en diálogo con la escena LATAM.", imgId: "e1", img: "./Intermedia.jpeg", placeholder: "Foto del trabajo" }
+    ]
+  };
+
+  toggleAdmin = () => {
+    if (this.state.isAdmin) {
+      this.setState({ isAdmin: false });
+    } else {
+      this.setState({ loginOpen: true, loginValues: { user: "", pass: "" }, loginError: false });
+    }
+  };
+
+  closeLogin = () => this.setState({ loginOpen: false, loginError: false });
+
+  setLoginField = (field) => (e) => {
+    const val = e.target.value;
+    this.setState(s => ({ loginValues: { ...s.loginValues, [field]: val } }));
+  };
+
+  submitLogin = () => {
+    const { user, pass } = this.state.loginValues;
+    if (user === "ann" && pass === "arte") {
+      this.setState({ isAdmin: true, loginOpen: false, loginValues: { user: "", pass: "" }, loginError: false });
+    } else {
+      this.setState({ loginError: true });
+    }
+  };
+
+  openNewForm = () => {
+    this.setState({ formOpen: true, editIndex: null, formValues: { title: "", date: "", medium: "", note: "" } });
+  };
+
+  openEditForm = (i) => {
+    const e = this.state.rawEntries[i];
+    this.setState({ formOpen: true, editIndex: i, formValues: { title: e.title, date: e.date, medium: e.medium, note: e.note } });
+  };
+
+  removeEntry = (i) => {
+    if (!window.confirm("¿Eliminar este trabajo de la bitácora?")) return;
+    this.setState(s => ({ rawEntries: s.rawEntries.filter((_, idx) => idx !== i) }));
+  };
+
+  saveForm = () => {
+    const { editIndex, formValues, nextId } = this.state;
+    this.setState(s => {
+      if (editIndex != null) {
+        const rawEntries = s.rawEntries.slice();
+        rawEntries[editIndex] = { ...rawEntries[editIndex], ...formValues };
+        return { rawEntries, formOpen: false };
+      }
+      const imgId = "e" + nextId;
+      const rawEntries = [...s.rawEntries, { ...formValues, imgId, placeholder: "Foto o video del trabajo" }];
+      return { rawEntries, formOpen: false, nextId: nextId + 1 };
+    });
+  };
+
+  renderVals() {
+    const { rawEntries, isAdmin } = this.state;
+    const entries = rawEntries.map((e, i) => ({
+      ...e,
+      open: () => this.setState({ activeIndex: i }),
+      edit: (ev) => { ev.stopPropagation(); this.openEditForm(i); },
+      remove: (ev) => { ev.stopPropagation(); this.removeEntry(i); }
+    }));
+    const activeEntry = this.state.activeIndex != null && entries[this.state.activeIndex] ? entries[this.state.activeIndex] : false;
+    const formImgId = this.state.editIndex != null ? rawEntries[this.state.editIndex].imgId : "e" + this.state.nextId;
+    return {
+      entries,
+      entryCount: entries.length,
+      activeEntry,
+      showIntro: !activeEntry,
+      isAdmin,
+      toggleAdmin: this.toggleAdmin,
+      loginOpen: this.state.loginOpen,
+      loginValues: this.state.loginValues,
+      loginError: this.state.loginError,
+      closeLogin: this.closeLogin,
+      setLoginField: this.setLoginField,
+      submitLogin: this.submitLogin,
+      closeLightbox: () => this.setState({ activeIndex: null }),
+      stopClick: (e) => e.stopPropagation(),
+      formOpen: this.state.formOpen,
+      formTitle: this.state.editIndex != null ? "Editar trabajo" : "Añadir trabajo",
+      formValues: this.state.formValues,
+      formImgId,
+      openNewForm: this.openNewForm,
+      closeForm: () => this.setState({ formOpen: false }),
+      saveForm: this.saveForm,
+      setFormField: (field) => (e) => {
+        const val = e.target.value;
+        this.setState(s => ({ formValues: { ...s.formValues, [field]: val } }));
+      }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "bitacora-arte-medios",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Bitácora de arte para medios — registro visual de trabajos.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
