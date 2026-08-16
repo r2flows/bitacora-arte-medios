@@ -124,19 +124,19 @@
           </div>
           <div class="field">
             <label>Título</label>
-            <input class="input" value="{{ formValues.title }}" onChange="{{ setFormField('title') }}">
+            <input class="input" value="{{ formValues.title }}" onChange="{{ setTitleField }}">
           </div>
           <div class="field">
             <label>Fecha</label>
-            <input class="input" value="{{ formValues.date }}" onChange="{{ setFormField('date') }}" placeholder="dd mmm aaaa">
+            <input class="input" value="{{ formValues.date }}" onChange="{{ setDateField }}" placeholder="dd mmm aaaa">
           </div>
           <div class="field">
             <label>Medio / técnica</label>
-            <input class="input" value="{{ formValues.medium }}" onChange="{{ setFormField('medium') }}">
+            <input class="input" value="{{ formValues.medium }}" onChange="{{ setMediumField }}">
           </div>
           <div class="field">
             <label>Descripción</label>
-            <input class="input" value="{{ formValues.note }}" onChange="{{ setFormField('note') }}">
+            <input class="input" value="{{ formValues.note }}" onChange="{{ setNoteField }}">
           </div>
         </div>
         <div class="dialog-actions">
@@ -154,11 +154,11 @@
         <div style="display:flex;flex-direction:column;gap:var(--space-4)">
           <div class="field">
             <label>Usuario</label>
-            <input class="input" value="{{ loginValues.user }}" onChange="{{ setLoginField('user') }}">
+            <input class="input" value="{{ loginValues.user }}" onChange="{{ setLoginUser }}">
           </div>
           <div class="field">
             <label>Contraseña</label>
-            <input class="input" type="password" value="{{ loginValues.pass }}" onChange="{{ setLoginField('pass') }}">
+            <input class="input" type="password" value="{{ loginValues.pass }}" onChange="{{ setLoginPass }}">
           </div>
           <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
             <p style="margin:0;font-size:13px;color:var(--color-accent-700)">Usuario o contraseña incorrectos.</p>
@@ -201,9 +201,14 @@ class Component extends DCLogic {
 
   closeLogin = () => this.setState({ loginOpen: false, loginError: false });
 
-  setLoginField = (field) => (e) => {
+  setLoginUser = (e) => {
     const val = e.target.value;
-    this.setState(s => ({ loginValues: { ...s.loginValues, [field]: val } }));
+    this.setState(s => ({ loginValues: { ...s.loginValues, user: val } }));
+  };
+
+  setLoginPass = (e) => {
+    const val = e.target.value;
+    this.setState(s => ({ loginValues: { ...s.loginValues, pass: val } }));
   };
 
   submitLogin = () => {
@@ -227,6 +232,26 @@ class Component extends DCLogic {
   removeEntry = (i) => {
     if (!window.confirm("¿Eliminar este trabajo de la bitácora?")) return;
     this.setState(s => ({ rawEntries: s.rawEntries.filter((_, idx) => idx !== i) }));
+  };
+
+  setTitleField = (e) => {
+    const val = e.target.value;
+    this.setState(s => ({ formValues: { ...s.formValues, title: val } }));
+  };
+
+  setDateField = (e) => {
+    const val = e.target.value;
+    this.setState(s => ({ formValues: { ...s.formValues, date: val } }));
+  };
+
+  setMediumField = (e) => {
+    const val = e.target.value;
+    this.setState(s => ({ formValues: { ...s.formValues, medium: val } }));
+  };
+
+  setNoteField = (e) => {
+    const val = e.target.value;
+    this.setState(s => ({ formValues: { ...s.formValues, note: val } }));
   };
 
   saveForm = () => {
@@ -264,7 +289,8 @@ class Component extends DCLogic {
       loginValues: this.state.loginValues,
       loginError: this.state.loginError,
       closeLogin: this.closeLogin,
-      setLoginField: this.setLoginField,
+      setLoginUser: this.setLoginUser,
+      setLoginPass: this.setLoginPass,
       submitLogin: this.submitLogin,
       closeLightbox: () => this.setState({ activeIndex: null }),
       stopClick: (e) => e.stopPropagation(),
@@ -275,10 +301,10 @@ class Component extends DCLogic {
       openNewForm: this.openNewForm,
       closeForm: () => this.setState({ formOpen: false }),
       saveForm: this.saveForm,
-      setFormField: (field) => (e) => {
-        const val = e.target.value;
-        this.setState(s => ({ formValues: { ...s.formValues, [field]: val } }));
-      }
+      setTitleField: this.setTitleField,
+      setDateField: this.setDateField,
+      setMediumField: this.setMediumField,
+      setNoteField: this.setNoteField
     };
   }
 }
