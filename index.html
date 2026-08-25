@@ -9,7 +9,6 @@
 <x-dc>
 <helmet>
   <link rel="stylesheet" href="./styles.css">
-  <script src="./image-slot.js"></script>
   <style>
     body{margin:0}
     .tl-item{position:relative}
@@ -19,6 +18,7 @@
     .entry-card{transition:transform .2s ease;display:grid;grid-template-columns:300px 1fr}
     .entry-card:hover{transform:translateY(-2px)}
     .entry-card > *{min-width:0}
+    .entry-card--text{grid-template-columns:1fr}
     .entry-thumb{aspect-ratio:4/3}
     @media (max-width:640px){
       .entry-card{grid-template-columns:1fr}
@@ -28,6 +28,8 @@
     @media (max-width:480px){
       header.nav{padding:var(--space-4) var(--space-6) !important}
     }
+    .file-field{border:1px dashed var(--color-divider);border-radius:var(--radius-md);padding:var(--space-3)}
+    .dialog{max-height:90vh;overflow-y:auto}
   </style>
 </helmet>
 
@@ -53,8 +55,12 @@
       <p class="text-muted" style="max-width:520px;margin:0 0 var(--space-8);font-size:15px">Bitácora visual de piezas realizadas en el semestre, en orden cronológico.</p>
     </sc-if>
 
+    <sc-if value="{{ showLoading }}" hint-placeholder-val="{{ false }}">
+      <p class="text-muted" style="font-size:14px;padding-left:var(--space-6)">Cargando bitácora…</p>
+    </sc-if>
+
     <div style="display:flex;flex-direction:column;gap:56px;padding-left:var(--space-6)">
-      <sc-for list="{{ entries }}" as="entry" hint-placeholder-count="4">
+      <sc-for list="{{ entries }}" as="entry" hint-placeholder-count="0">
         <div class="tl-item" style="padding-left:var(--space-6)">
           <div class="tl-dot"></div>
           <div class="tl-line"></div>
@@ -64,13 +70,20 @@
             <span class="tag tag-neutral">{{ entry.medium }}</span>
           </div>
 
-          <div class="entry-card card elev-sm" style="padding:0;overflow:hidden;cursor:pointer;position:relative" onClick="{{ entry.open }}">
-            <div class="washed entry-thumb">
-              <image-slot id="{{ entry.imgId }}" shape="rect" placeholder="{{ entry.placeholder }}" src="{{ entry.img }}" fit="contain"></image-slot>
-            </div>
+          <div class="{{ entry.cardClass }}" style="padding:0;overflow:hidden;cursor:pointer;position:relative" onClick="{{ entry.open }}">
+            <sc-if value="{{ entry.isImagen }}" hint-placeholder-val="{{ true }}">
+              <div class="washed entry-thumb">
+                <img src="{{ entry.fileUrl }}" alt="" style="width:100%;height:100%;object-fit:contain;display:block">
+              </div>
+            </sc-if>
+            <sc-if value="{{ entry.isVideo }}" hint-placeholder-val="{{ false }}">
+              <div class="washed entry-thumb">
+                <video src="{{ entry.fileUrl }}" controls style="width:100%;height:100%;object-fit:contain"></video>
+              </div>
+            </sc-if>
             <div style="padding:var(--space-4) var(--space-5);display:flex;flex-direction:column;gap:var(--space-1);justify-content:center">
               <h3 style="margin:0">{{ entry.title }}</h3>
-              <p class="text-muted" style="margin:0;font-size:14px;line-height:1.5">{{ entry.note }}</p>
+              <p class="text-muted" style="margin:0;font-size:14px;line-height:1.5">{{ entry.previewText }}</p>
             </div>
             <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
               <div style="position:absolute;top:var(--space-3);right:var(--space-3);display:flex;gap:var(--space-2)">
@@ -96,17 +109,27 @@
   <sc-if value="{{ activeEntry }}" hint-placeholder-val="{{ false }}">
     <div class="dialog-backdrop" style="position:fixed" onClick="{{ closeLightbox }}">
       <div class="dialog" role="dialog" aria-modal="true" style="max-width:820px;width:min(94vw,820px);padding:0;overflow:hidden" onClick="{{ stopClick }}">
-        <div class="washed" style="max-height:78vh;background:var(--color-surface)">
-          <image-slot id="{{ activeEntry.imgId }}" shape="rect" placeholder="{{ activeEntry.placeholder }}" src="{{ activeEntry.img }}" fit="contain" style="width:100%;height:78vh"></image-slot>
-        </div>
+        <sc-if value="{{ activeEntry.isImagen }}" hint-placeholder-val="{{ true }}">
+          <div class="washed" style="max-height:78vh;background:var(--color-surface)">
+            <img src="{{ activeEntry.fileUrl }}" alt="" style="width:100%;height:78vh;object-fit:contain;display:block">
+          </div>
+        </sc-if>
+        <sc-if value="{{ activeEntry.isVideo }}" hint-placeholder-val="{{ false }}">
+          <div class="washed" style="max-height:78vh;background:var(--color-surface)">
+            <video src="{{ activeEntry.fileUrl }}" controls style="width:100%;height:78vh;object-fit:contain"></video>
+          </div>
+        </sc-if>
         <div style="padding:var(--space-5)">
           <div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-2)">
             <span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.04em;color:var(--color-accent-700)">{{ activeEntry.date }}</span>
             <span class="tag tag-neutral">{{ activeEntry.medium }}</span>
           </div>
           <div class="dialog-title" style="margin-bottom:var(--space-2)">{{ activeEntry.title }}</div>
-          <div class="dialog-body">{{ activeEntry.note }}</div>
+          <div class="dialog-body" style="white-space:pre-wrap;max-height:40vh;overflow:auto">{{ activeEntry.lightboxText }}</div>
           <div class="dialog-actions">
+            <sc-if value="{{ activeEntry.fileUrl }}" hint-placeholder-val="{{ false }}">
+              <a href="{{ activeEntry.fileUrl }}" download="{{ activeEntry.fileName }}" class="btn btn-secondary">Descargar</a>
+            </sc-if>
             <button type="button" class="btn btn-secondary" onClick="{{ closeLightbox }}">Cerrar</button>
           </div>
         </div>
@@ -119,9 +142,31 @@
       <div class="dialog" role="dialog" aria-modal="true" style="max-width:480px;width:min(92vw,480px)" onClick="{{ stopClick }}">
         <div class="dialog-title" style="margin-bottom:var(--space-4)">{{ formTitle }}</div>
         <div style="display:flex;flex-direction:column;gap:var(--space-4)">
-          <div class="washed" style="aspect-ratio:4/3">
-            <image-slot id="{{ formImgId }}" shape="rect" placeholder="Foto o video del trabajo"></image-slot>
+          <div class="seg" style="align-self:flex-start">
+            <label class="seg-opt"><input type="radio" name="worktype" checked="{{ formIsImagen }}" onChange="{{ setFormTypeImagen }}"> Imagen</label>
+            <label class="seg-opt"><input type="radio" name="worktype" checked="{{ formIsVideo }}" onChange="{{ setFormTypeVideo }}"> Video</label>
+            <label class="seg-opt"><input type="radio" name="worktype" checked="{{ formIsTexto }}" onChange="{{ setFormTypeTexto }}"> Texto</label>
           </div>
+
+          <sc-if value="{{ formIsImagen }}" hint-placeholder-val="{{ true }}">
+            <div class="washed" style="aspect-ratio:4/3">
+              <img src="{{ formPreviewUrl }}" alt="" style="width:100%;height:100%;object-fit:contain;display:block">
+            </div>
+          </sc-if>
+          <sc-if value="{{ formIsVideo }}" hint-placeholder-val="{{ false }}">
+            <div class="washed" style="aspect-ratio:4/3">
+              <video src="{{ formPreviewUrl }}" controls style="width:100%;height:100%;object-fit:contain"></video>
+            </div>
+          </sc-if>
+
+          <div class="field">
+            <label>{{ formFileLabel }}</label>
+            <div class="file-field">
+              <input type="file" accept="{{ formAccept }}" onChange="{{ handleFormFile }}">
+              <p class="text-muted" style="margin:var(--space-2) 0 0;font-size:12px">{{ formFileNameLabel }}</p>
+            </div>
+          </div>
+
           <div class="field">
             <label>Título</label>
             <input class="input" value="{{ formValues.title }}" onChange="{{ setTitleField }}">
@@ -134,14 +179,19 @@
             <label>Medio / técnica</label>
             <input class="input" value="{{ formValues.medium }}" onChange="{{ setMediumField }}">
           </div>
-          <div class="field">
-            <label>Descripción</label>
-            <input class="input" value="{{ formValues.note }}" onChange="{{ setNoteField }}">
-          </div>
+          <sc-if value="{{ formShowNote }}" hint-placeholder-val="{{ true }}">
+            <div class="field">
+              <label>Descripción</label>
+              <input class="input" value="{{ formValues.note }}" onChange="{{ setNoteField }}">
+            </div>
+          </sc-if>
+          <sc-if value="{{ formError }}" hint-placeholder-val="{{ false }}">
+            <p style="margin:0;font-size:13px;color:var(--color-accent-700)">{{ formError }}</p>
+          </sc-if>
         </div>
         <div class="dialog-actions">
           <button type="button" class="btn btn-secondary" onClick="{{ closeForm }}">Cancelar</button>
-          <button type="button" class="btn btn-primary" onClick="{{ saveForm }}">Guardar</button>
+          <button type="button" class="btn btn-primary" disabled="{{ formSaving }}" onClick="{{ saveForm }}">{{ formSaveLabel }}</button>
         </div>
       </div>
     </div>
@@ -175,25 +225,46 @@
 
 </x-dc>
 <script type="text/x-dc" data-dc-script>
+function excerpt(text, max) {
+  const t = (text || "").trim();
+  if (t.length <= max) return t;
+  return t.slice(0, max).trim() + "…";
+}
+
 class Component extends DCLogic {
   state = {
     activeIndex: null,
     isAdmin: false,
+    adminPassword: null,
     loginOpen: false,
     loginValues: { user: "", pass: "" },
     loginError: false,
     formOpen: false,
-    editIndex: null,
+    formSaving: false,
+    formError: null,
+    editId: null,
+    formType: "imagen",
     formValues: { title: "", date: "", medium: "", note: "" },
-    nextId: 2,
-    rawEntries: [
-      { date: "16 ago 2026", medium: "Mapa conceptual", title: "Intermedia — Santiago punto cero 0'0", note: "Diagrama de investigación que cruza arte, territorio y espacio urbano: performance, intervención, vida cotidiana y protesta en el Santiago punto cero, en diálogo con la escena LATAM.", imgId: "e1", img: "./Intermedia.jpeg", placeholder: "Foto del trabajo" }
-    ]
+    formFile: null,
+    formPreviewUrl: null,
+    entries: [],
+    entriesLoaded: false
+  };
+
+  componentDidMount() {
+    this.loadEntries();
+  }
+
+  loadEntries = () => {
+    return fetch("/api/entries")
+      .then((r) => r.json())
+      .then((entries) => this.setState({ entries, entriesLoaded: true }))
+      .catch(() => this.setState({ entriesLoaded: true }));
   };
 
   toggleAdmin = () => {
     if (this.state.isAdmin) {
-      this.setState({ isAdmin: false });
+      this.setState({ isAdmin: false, adminPassword: null });
     } else {
       this.setState({ loginOpen: true, loginValues: { user: "", pass: "" }, loginError: false });
     }
@@ -214,24 +285,50 @@ class Component extends DCLogic {
   submitLogin = () => {
     const { user, pass } = this.state.loginValues;
     if (user === "ann" && pass === "arte") {
-      this.setState({ isAdmin: true, loginOpen: false, loginValues: { user: "", pass: "" }, loginError: false });
+      this.setState({ isAdmin: true, adminPassword: pass, loginOpen: false, loginValues: { user: "", pass: "" }, loginError: false });
     } else {
       this.setState({ loginError: true });
     }
   };
 
+  setFormTypeImagen = () => this.setState({ formType: "imagen", formFile: null, formPreviewUrl: null });
+  setFormTypeVideo = () => this.setState({ formType: "video", formFile: null, formPreviewUrl: null });
+  setFormTypeTexto = () => this.setState({ formType: "texto", formFile: null, formPreviewUrl: null });
+
+  handleFormFile = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (this.state.formPreviewUrl && this.state.formPreviewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(this.state.formPreviewUrl);
+    }
+    const preview = this.state.formType !== "texto" ? URL.createObjectURL(file) : null;
+    this.setState({ formFile: file, formPreviewUrl: preview });
+  };
+
   openNewForm = () => {
-    this.setState({ formOpen: true, editIndex: null, formValues: { title: "", date: "", medium: "", note: "" } });
+    this.setState({
+      formOpen: true, editId: null, formType: "imagen", formError: null,
+      formValues: { title: "", date: "", medium: "", note: "" },
+      formFile: null, formPreviewUrl: null
+    });
   };
 
-  openEditForm = (i) => {
-    const e = this.state.rawEntries[i];
-    this.setState({ formOpen: true, editIndex: i, formValues: { title: e.title, date: e.date, medium: e.medium, note: e.note } });
+  openEditForm = (entry) => {
+    this.setState({
+      formOpen: true, editId: entry.id, formType: entry.type || "imagen", formError: null,
+      formValues: { title: entry.title, date: entry.date, medium: entry.medium, note: entry.note || "" },
+      formFile: null, formPreviewUrl: entry.fileUrl || null
+    });
   };
 
-  removeEntry = (i) => {
+  removeEntry = (id) => {
     if (!window.confirm("¿Eliminar este trabajo de la bitácora?")) return;
-    this.setState(s => ({ rawEntries: s.rawEntries.filter((_, idx) => idx !== i) }));
+    fetch("/api/entries/" + id, { method: "DELETE", headers: { "x-admin-password": this.state.adminPassword || "" } })
+      .then((r) => {
+        if (!r.ok) throw new Error("delete failed");
+        return this.loadEntries();
+      })
+      .catch(() => window.alert("No se pudo eliminar el trabajo."));
   };
 
   setTitleField = (e) => {
@@ -254,33 +351,66 @@ class Component extends DCLogic {
     this.setState(s => ({ formValues: { ...s.formValues, note: val } }));
   };
 
+  closeForm = () => this.setState({ formOpen: false });
+
   saveForm = () => {
-    const { editIndex, formValues, nextId } = this.state;
-    this.setState(s => {
-      if (editIndex != null) {
-        const rawEntries = s.rawEntries.slice();
-        rawEntries[editIndex] = { ...rawEntries[editIndex], ...formValues };
-        return { rawEntries, formOpen: false };
-      }
-      const imgId = "e" + nextId;
-      const rawEntries = [...s.rawEntries, { ...formValues, imgId, placeholder: "Foto o video del trabajo" }];
-      return { rawEntries, formOpen: false, nextId: nextId + 1 };
-    });
+    if (this.state.formSaving) return;
+    const { formType, formValues, formFile, editId, adminPassword } = this.state;
+    this.setState({ formSaving: true, formError: null });
+    const fd = new FormData();
+    fd.append("type", formType);
+    fd.append("title", formValues.title || "");
+    fd.append("date", formValues.date || "");
+    fd.append("medium", formValues.medium || "");
+    fd.append("note", formValues.note || "");
+    if (formFile) fd.append("file", formFile);
+    const url = editId ? "/api/entries/" + editId : "/api/entries";
+    const method = editId ? "PUT" : "POST";
+    fetch(url, { method, headers: { "x-admin-password": adminPassword || "" }, body: fd })
+      .then((r) => {
+        if (!r.ok) throw new Error("save failed");
+        return this.loadEntries();
+      })
+      .then(() => this.setState({ formOpen: false, formSaving: false }))
+      .catch(() => this.setState({ formSaving: false, formError: "No se pudo guardar. Intenta de nuevo." }));
   };
 
   renderVals() {
-    const { rawEntries, isAdmin } = this.state;
-    const entries = rawEntries.map((e, i) => ({
-      ...e,
-      open: () => this.setState({ activeIndex: i }),
-      edit: (ev) => { ev.stopPropagation(); this.openEditForm(i); },
-      remove: (ev) => { ev.stopPropagation(); this.removeEntry(i); }
-    }));
-    const activeEntry = this.state.activeIndex != null && entries[this.state.activeIndex] ? entries[this.state.activeIndex] : false;
-    const formImgId = this.state.editIndex != null ? rawEntries[this.state.editIndex].imgId : "e" + this.state.nextId;
+    const { entries, isAdmin, formType, formFile, formPreviewUrl, editId } = this.state;
+
+    const mappedEntries = entries.map((e) => {
+      const type = e.type || "imagen";
+      const isTexto = type === "texto";
+      return {
+        ...e,
+        isImagen: type === "imagen",
+        isVideo: type === "video",
+        isTexto,
+        cardClass: "entry-card card elev-sm" + (isTexto ? " entry-card--text" : ""),
+        previewText: isTexto ? excerpt(e.body, 180) : e.note,
+        lightboxText: isTexto ? (e.body || "") : e.note,
+        open: () => this.setState({ activeIndex: entries.indexOf(e) }),
+        edit: (ev) => { ev.stopPropagation(); this.openEditForm(e); },
+        remove: (ev) => { ev.stopPropagation(); this.removeEntry(e.id); }
+      };
+    });
+
+    const activeEntry = this.state.activeIndex != null && mappedEntries[this.state.activeIndex]
+      ? mappedEntries[this.state.activeIndex] : false;
+
+    const formIsImagen = formType === "imagen";
+    const formIsVideo = formType === "video";
+    const formIsTexto = formType === "texto";
+    const formAccept = formIsTexto ? ".txt,.md,text/plain" : formIsVideo ? "video/*" : "image/*";
+    const formFileLabel = formIsTexto ? "Archivo de texto (.txt, .md)" : formIsVideo ? "Archivo de video" : "Foto";
+    const formFileNameLabel = formFile
+      ? ("Archivo seleccionado: " + formFile.name)
+      : (editId ? "Ya hay un archivo guardado; sube uno nuevo para reemplazarlo." : "Ningún archivo seleccionado todavía.");
+
     return {
-      entries,
-      entryCount: entries.length,
+      entries: mappedEntries,
+      entryCount: mappedEntries.length,
+      showLoading: !this.state.entriesLoaded,
       activeEntry,
       showIntro: !activeEntry,
       isAdmin,
@@ -295,11 +425,25 @@ class Component extends DCLogic {
       closeLightbox: () => this.setState({ activeIndex: null }),
       stopClick: (e) => e.stopPropagation(),
       formOpen: this.state.formOpen,
-      formTitle: this.state.editIndex != null ? "Editar trabajo" : "Añadir trabajo",
+      formSaving: this.state.formSaving,
+      formSaveLabel: this.state.formSaving ? "Guardando…" : "Guardar",
+      formError: this.state.formError,
+      formTitle: editId != null ? "Editar trabajo" : "Añadir trabajo",
       formValues: this.state.formValues,
-      formImgId,
+      formIsImagen,
+      formIsVideo,
+      formIsTexto,
+      formShowNote: !formIsTexto,
+      formAccept,
+      formFileLabel,
+      formFileNameLabel,
+      formPreviewUrl,
+      setFormTypeImagen: this.setFormTypeImagen,
+      setFormTypeVideo: this.setFormTypeVideo,
+      setFormTypeTexto: this.setFormTypeTexto,
+      handleFormFile: this.handleFormFile,
       openNewForm: this.openNewForm,
-      closeForm: () => this.setState({ formOpen: false }),
+      closeForm: this.closeForm,
       saveForm: this.saveForm,
       setTitleField: this.setTitleField,
       setDateField: this.setDateField,
