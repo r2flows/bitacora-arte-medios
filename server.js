@@ -38,14 +38,11 @@ function ensureDataDir() {
   if (!fs.existsSync(ENTRIES_FILE)) {
     const seed = [{
       id: crypto.randomUUID(),
-      type: 'imagen',
       date: '16 ago 2026',
       medium: 'Mapa conceptual',
       title: "Intermedia — Santiago punto cero 0'0",
       note: "Diagrama de investigación que cruza arte, territorio y espacio urbano: performance, intervención, vida cotidiana y protesta en el Santiago punto cero, en diálogo con la escena LATAM.",
-      fileUrl: './Intermedia.jpeg',
-      fileName: 'Intermedia.jpeg',
-      body: null,
+      items: [{ id: crypto.randomUUID(), type: 'imagen', fileUrl: './Intermedia.jpeg', fileName: 'Intermedia.jpeg', body: null }],
     }];
     fs.writeFileSync(ENTRIES_FILE, JSON.stringify(seed, null, 2));
   }
@@ -53,7 +50,7 @@ function ensureDataDir() {
 
 function readEntries() {
   try {
-    return JSON.parse(fs.readFileSync(ENTRIES_FILE, 'utf8'));
+    return JSON.parse(fs.readFileSync(ENTRIES_FILE, 'utf8')).map(normalizeEntry);
   } catch {
     return [];
   }
@@ -76,109 +73,141 @@ function sendJson(res, status, obj) {
   res.end(body);
 }
 
+const MAX_FILES = 30;
+
+function inferType(mimeType, filename) {
+  const ext = path.extname(filename || '').toLowerCase();
+  if ((mimeType || '').startsWith('video/') || ['.mp4', '.webm', '.mov', '.m4v'].includes(ext)) return 'video';
+  if ((mimeType || '').startsWith('text/') || ['.txt', '.md'].includes(ext)) return 'texto';
+  return 'imagen';
+}
+
+function uploadPath(fileUrl) {
+  return path.join(UPLOADS_DIR, fileUrl.slice('/uploads/'.length));
+}
+
+function deleteItemFile(item) {
+  if (item && item.fileUrl && item.fileUrl.startsWith('/uploads/')) {
+    fs.unlink(uploadPath(item.fileUrl), () => {});
+  }
+}
+
+// Legacy entries had a single file (type/fileUrl/fileName/body at the top level).
+// Convert them to the multi-item shape: entry.items = [{ id, type, fileUrl, fileName, body }].
+function normalizeEntry(e) {
+  if (Array.isArray(e.items)) return e;
+  const items = [];
+  if (e.fileUrl || e.body) {
+    items.push({ id: crypto.randomUUID(), type: e.type || 'imagen', fileUrl: e.fileUrl || null, fileName: e.fileName || null, body: e.body || null });
+  }
+  const { type, fileUrl, fileName, body, ...rest } = e;
+  return { ...rest, items };
+}
+
 function parseMultipart(req, cb) {
   let bb;
   try {
-    bb = busboy({ headers: req.headers, limits: { fileSize: MAX_FILE_SIZE, files: 1 } });
+    bb = busboy({ headers: req.headers, limits: { fileSize: MAX_FILE_SIZE, files: MAX_FILES } });
   } catch (e) {
     cb(e);
     return;
   }
   const fields = {};
-  let fileInfo = null;
+  const files = [];
+  const writes = [];
   let fileTooLarge = false;
-  let fileWritePromise = Promise.resolve();
 
   bb.on('field', (name, val) => {
     fields[name] = val;
   });
 
   bb.on('file', (name, stream, info) => {
+    if (!info.filename) {
+      stream.resume();
+      return;
+    }
     const id = crypto.randomUUID();
-    const safeName = (info.filename || 'archivo').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
+    const safeName = info.filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
     const storedName = id + '-' + safeName;
     const dest = path.join(UPLOADS_DIR, storedName);
-    fileInfo = { storedName, originalName: info.filename || safeName, mimeType: info.mimeType, dest };
+    files.push({ storedName, originalName: info.filename, mimeType: info.mimeType, dest });
     const writeStream = fs.createWriteStream(dest);
     stream.on('limit', () => {
       fileTooLarge = true;
     });
-    fileWritePromise = new Promise((resolve) => {
+    writes.push(new Promise((resolve) => {
       writeStream.on('close', resolve);
       writeStream.on('error', resolve);
-    });
+    }));
     stream.pipe(writeStream);
   });
 
   bb.on('finish', () => {
-    fileWritePromise.then(() => {
+    Promise.all(writes).then(() => {
       if (fileTooLarge) {
-        if (fileInfo) fs.unlink(fileInfo.dest, () => {});
-        cb(new Error('El archivo supera el tamaño máximo permitido.'));
+        files.forEach((f) => fs.unlink(f.dest, () => {}));
+        cb(new Error('Un archivo supera el tamaño máximo permitido (80 MB).'));
         return;
       }
-      cb(null, { fields, fileInfo });
+      cb(null, { fields, files });
     });
   });
   bb.on('error', (err) => cb(err));
   req.pipe(bb);
 }
 
-function handleCreate({ fields, fileInfo }, res) {
+function filesToItems(files) {
+  return files.map((f) => {
+    const type = inferType(f.mimeType, f.originalName);
+    let body = null;
+    if (type === 'texto') {
+      try {
+        body = fs.readFileSync(f.dest, 'utf8').slice(0, MAX_TEXT_BODY);
+      } catch {}
+    }
+    return { id: crypto.randomUUID(), type, fileUrl: '/uploads/' + f.storedName, fileName: f.originalName, body };
+  });
+}
+
+function handleCreate({ fields, files }, res) {
+  if (!(fields.title || '').trim() && files.length === 0) {
+    return sendJson(res, 400, { error: 'Agrega un título o al menos un archivo.' });
+  }
   const entries = readEntries();
-  const type = fields.type === 'video' || fields.type === 'texto' ? fields.type : 'imagen';
   const entry = {
     id: crypto.randomUUID(),
-    type,
     title: fields.title || '',
     date: fields.date || '',
     medium: fields.medium || '',
-    note: type === 'texto' ? '' : (fields.note || ''),
-    fileUrl: null,
-    fileName: null,
-    body: null,
+    note: fields.note || '',
+    items: filesToItems(files),
   };
-  if (fileInfo) {
-    entry.fileUrl = '/uploads/' + fileInfo.storedName;
-    entry.fileName = fileInfo.originalName;
-    if (type === 'texto') {
-      try {
-        entry.body = fs.readFileSync(fileInfo.dest, 'utf8').slice(0, MAX_TEXT_BODY);
-      } catch {}
-    }
-  }
   entries.push(entry);
   writeEntriesAtomic(entries);
   sendJson(res, 201, entry);
 }
 
-function handleUpdate(id, { fields, fileInfo }, res) {
+function handleUpdate(id, { fields, files }, res) {
   const entries = readEntries();
   const idx = entries.findIndex((e) => e.id === id);
   if (idx === -1) {
-    if (fileInfo) fs.unlink(fileInfo.dest, () => {});
+    files.forEach((f) => fs.unlink(f.dest, () => {}));
     return sendJson(res, 404, { error: 'not found' });
   }
   const entry = entries[idx];
-  const prevFileUrl = entry.fileUrl;
-  entry.type = fields.type === 'video' || fields.type === 'texto' || fields.type === 'imagen' ? fields.type : entry.type;
   entry.title = fields.title ?? entry.title;
   entry.date = fields.date ?? entry.date;
   entry.medium = fields.medium ?? entry.medium;
-  entry.note = entry.type === 'texto' ? '' : (fields.note ?? entry.note);
-  if (fileInfo) {
-    entry.fileUrl = '/uploads/' + fileInfo.storedName;
-    entry.fileName = fileInfo.originalName;
-    entry.body = null;
-    if (entry.type === 'texto') {
-      try {
-        entry.body = fs.readFileSync(fileInfo.dest, 'utf8').slice(0, MAX_TEXT_BODY);
-      } catch {}
-    }
-    if (prevFileUrl && prevFileUrl.startsWith('/uploads/')) {
-      fs.unlink(path.join(UPLOADS_DIR, prevFileUrl.slice('/uploads/'.length)), () => {});
-    }
+  entry.note = fields.note ?? entry.note;
+  let removeIds = [];
+  try {
+    removeIds = JSON.parse(fields.removeItems || '[]');
+  } catch {}
+  if (Array.isArray(removeIds) && removeIds.length) {
+    entry.items.filter((it) => removeIds.includes(it.id)).forEach(deleteItemFile);
+    entry.items = entry.items.filter((it) => !removeIds.includes(it.id));
   }
+  entry.items = entry.items.concat(filesToItems(files));
   entries[idx] = entry;
   writeEntriesAtomic(entries);
   sendJson(res, 200, entry);
@@ -190,9 +219,7 @@ function handleDelete(id, res) {
   if (idx === -1) return sendJson(res, 404, { error: 'not found' });
   const [removed] = entries.splice(idx, 1);
   writeEntriesAtomic(entries);
-  if (removed.fileUrl && removed.fileUrl.startsWith('/uploads/')) {
-    fs.unlink(path.join(UPLOADS_DIR, removed.fileUrl.slice('/uploads/'.length)), () => {});
-  }
+  (removed.items || []).forEach(deleteItemFile);
   sendJson(res, 200, { ok: true });
 }
 
@@ -259,4 +286,9 @@ const server = http.createServer((req, res) => {
 });
 
 ensureDataDir();
+// One-time migration of legacy single-file entries so item ids are stable on disk.
+try {
+  const raw = JSON.parse(fs.readFileSync(ENTRIES_FILE, 'utf8'));
+  if (raw.some((e) => !Array.isArray(e.items))) writeEntriesAtomic(raw.map(normalizeEntry));
+} catch {}
 server.listen(PORT, () => console.log('Bitácora de Arte listening on port ' + PORT + ' (data: ' + DATA_DIR + ')'));

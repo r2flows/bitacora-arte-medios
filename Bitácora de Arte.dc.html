@@ -30,6 +30,25 @@
     }
     .file-field{border:1px dashed var(--color-divider);border-radius:var(--radius-md);padding:var(--space-3)}
     .dialog{max-height:90vh;overflow-y:auto}
+    .dialog-backdrop{z-index:100}
+    .entry-card--text{min-height:110px}
+    .entry-card--text.entry-card--admin .entry-body{padding-top:60px}
+    .is-placeholder{font-style:italic;opacity:.7}
+    .admin-actions{position:absolute;top:var(--space-3);right:var(--space-3);display:flex;gap:var(--space-2);z-index:2}
+    .admin-actions .btn{background:var(--color-bg);box-shadow:var(--shadow-sm);height:34px;padding:0 var(--space-3);font-size:13px}
+    .admin-actions .btn-danger{color:var(--color-accent-700);border-color:var(--color-accent-300)}
+    .btn-danger{color:var(--color-accent-700);border-color:var(--color-accent-300)}
+    .btn-danger:hover{background:var(--color-accent-100)}
+    .count-badge{position:absolute;bottom:var(--space-3);left:var(--space-3);z-index:2;background:var(--color-bg);box-shadow:var(--shadow-sm)}
+    .thumb-wrap{position:relative}
+    .viewer{position:relative;background:var(--color-surface)}
+    .viewer-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:2;background:var(--color-bg);box-shadow:var(--shadow-sm)}
+    .viewer-text{height:60vh;overflow:auto;padding:var(--space-6);white-space:pre-wrap;font-size:15px;line-height:1.6;box-sizing:border-box}
+    .file-list{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-3)}
+    .file-row{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2);border-radius:var(--radius-sm);background:var(--color-surface)}
+    .file-row-thumb{width:48px;height:48px;flex:none;border-radius:var(--radius-sm);overflow:hidden;background:var(--color-bg);display:flex;align-items:center;justify-content:center;font-size:11px}
+    .file-row-thumb img,.file-row-thumb video{width:100%;height:100%;object-fit:cover;display:block}
+    .file-row-name{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   </style>
 </helmet>
 
@@ -71,24 +90,34 @@
           </div>
 
           <div class="{{ entry.cardClass }}" style="padding:0;overflow:hidden;cursor:pointer;position:relative" onClick="{{ entry.open }}">
-            <sc-if value="{{ entry.isImagen }}" hint-placeholder-val="{{ true }}">
-              <div class="washed entry-thumb">
-                <img src="{{ entry.fileUrl }}" alt="" style="width:100%;height:100%;object-fit:contain;display:block">
+            <sc-if value="{{ entry.hasThumb }}" hint-placeholder-val="{{ true }}">
+              <div class="thumb-wrap">
+                <sc-if value="{{ entry.thumbIsImagen }}" hint-placeholder-val="{{ true }}">
+                  <div class="washed entry-thumb">
+                    <img src="{{ entry.thumbUrl }}" alt="" style="width:100%;height:100%;object-fit:contain;display:block">
+                  </div>
+                </sc-if>
+                <sc-if value="{{ entry.thumbIsVideo }}" hint-placeholder-val="{{ false }}">
+                  <div class="washed entry-thumb">
+                    <video src="{{ entry.thumbUrl }}" muted playsinline preload="metadata" style="width:100%;height:100%;object-fit:contain"></video>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ entry.countLabel }}" hint-placeholder-val="{{ false }}">
+                  <span class="tag tag-accent count-badge">{{ entry.countLabel }}</span>
+                </sc-if>
               </div>
             </sc-if>
-            <sc-if value="{{ entry.isVideo }}" hint-placeholder-val="{{ false }}">
-              <div class="washed entry-thumb">
-                <video src="{{ entry.fileUrl }}" controls style="width:100%;height:100%;object-fit:contain"></video>
-              </div>
-            </sc-if>
-            <div style="padding:var(--space-4) var(--space-5);display:flex;flex-direction:column;gap:var(--space-1);justify-content:center">
-              <h3 style="margin:0">{{ entry.title }}</h3>
+            <div class="entry-body" style="padding:var(--space-4) var(--space-5);display:flex;flex-direction:column;gap:var(--space-1);justify-content:center">
+              <h3 class="{{ entry.titleClass }}" style="margin:0">{{ entry.displayTitle }}</h3>
               <p class="text-muted" style="margin:0;font-size:14px;line-height:1.5">{{ entry.previewText }}</p>
+              <sc-if value="{{ entry.textCountLabel }}" hint-placeholder-val="{{ false }}">
+                <span class="tag tag-accent" style="align-self:flex-start;margin-top:var(--space-2)">{{ entry.textCountLabel }}</span>
+              </sc-if>
             </div>
             <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
-              <div style="position:absolute;top:var(--space-3);right:var(--space-3);display:flex;gap:var(--space-2)">
-                <button type="button" class="btn btn-icon btn-secondary" title="Editar" onClick="{{ entry.edit }}">✎</button>
-                <button type="button" class="btn btn-icon btn-secondary" title="Eliminar" onClick="{{ entry.remove }}">✕</button>
+              <div class="admin-actions">
+                <button type="button" class="btn btn-secondary" title="Editar" onClick="{{ entry.edit }}">✎ Editar</button>
+                <button type="button" class="btn btn-secondary btn-danger" title="Eliminar" onClick="{{ entry.remove }}">✕ Eliminar</button>
               </div>
             </sc-if>
           </div>
@@ -108,15 +137,27 @@
 
   <sc-if value="{{ activeEntry }}" hint-placeholder-val="{{ false }}">
     <div class="dialog-backdrop" style="position:fixed" onClick="{{ closeLightbox }}">
-      <div class="dialog" role="dialog" aria-modal="true" style="max-width:820px;width:min(94vw,820px);padding:0;overflow:hidden" onClick="{{ stopClick }}">
-        <sc-if value="{{ activeEntry.isImagen }}" hint-placeholder-val="{{ true }}">
-          <div class="washed" style="max-height:78vh;background:var(--color-surface)">
-            <img src="{{ activeEntry.fileUrl }}" alt="" style="width:100%;height:78vh;object-fit:contain;display:block">
-          </div>
-        </sc-if>
-        <sc-if value="{{ activeEntry.isVideo }}" hint-placeholder-val="{{ false }}">
-          <div class="washed" style="max-height:78vh;background:var(--color-surface)">
-            <video src="{{ activeEntry.fileUrl }}" controls style="width:100%;height:78vh;object-fit:contain"></video>
+      <div class="dialog" role="dialog" aria-modal="true" style="max-width:820px;width:min(94vw,820px);padding:0;overflow:hidden auto" onClick="{{ stopClick }}">
+        <sc-if value="{{ activeItem }}" hint-placeholder-val="{{ false }}">
+          <div class="viewer">
+            <sc-if value="{{ activeItem.isImagen }}" hint-placeholder-val="{{ true }}">
+              <div class="washed">
+                <img src="{{ activeItem.fileUrl }}" alt="" style="width:100%;height:70vh;object-fit:contain;display:block">
+              </div>
+            </sc-if>
+            <sc-if value="{{ activeItem.isVideo }}" hint-placeholder-val="{{ false }}">
+              <div class="washed">
+                <video src="{{ activeItem.fileUrl }}" controls style="width:100%;height:70vh;object-fit:contain;display:block"></video>
+              </div>
+            </sc-if>
+            <sc-if value="{{ activeItem.isTexto }}" hint-placeholder-val="{{ false }}">
+              <div class="viewer-text">{{ activeItem.displayBody }}</div>
+            </sc-if>
+            <sc-if value="{{ hasMultipleItems }}" hint-placeholder-val="{{ false }}">
+              <button type="button" class="btn btn-icon btn-secondary viewer-nav" style="left:var(--space-3)" title="Anterior" onClick="{{ prevItem }}">‹</button>
+              <button type="button" class="btn btn-icon btn-secondary viewer-nav" style="right:var(--space-3)" title="Siguiente" onClick="{{ nextItem }}">›</button>
+              <span class="tag tag-neutral count-badge">{{ itemCounter }}</span>
+            </sc-if>
           </div>
         </sc-if>
         <div style="padding:var(--space-5)">
@@ -124,11 +165,15 @@
             <span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.04em;color:var(--color-accent-700)">{{ activeEntry.date }}</span>
             <span class="tag tag-neutral">{{ activeEntry.medium }}</span>
           </div>
-          <div class="dialog-title" style="margin-bottom:var(--space-2)">{{ activeEntry.title }}</div>
-          <div class="dialog-body" style="white-space:pre-wrap;max-height:40vh;overflow:auto">{{ activeEntry.lightboxText }}</div>
+          <div class="dialog-title {{ activeEntry.titleClass }}" style="margin-bottom:var(--space-2)">{{ activeEntry.displayTitle }}</div>
+          <div class="dialog-body" style="white-space:pre-wrap;max-height:40vh;overflow:auto">{{ activeEntry.note }}</div>
           <div class="dialog-actions">
-            <sc-if value="{{ activeEntry.fileUrl }}" hint-placeholder-val="{{ false }}">
-              <a href="{{ activeEntry.fileUrl }}" download="{{ activeEntry.fileName }}" class="btn btn-secondary">Descargar</a>
+            <sc-if value="{{ activeItem.fileUrl }}" hint-placeholder-val="{{ false }}">
+              <a href="{{ activeItem.fileUrl }}" download="{{ activeItem.fileName }}" class="btn btn-secondary">Descargar</a>
+            </sc-if>
+            <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+              <button type="button" class="btn btn-secondary" onClick="{{ activeEntry.edit }}">Editar</button>
+              <button type="button" class="btn btn-secondary btn-danger" onClick="{{ activeEntry.remove }}">Eliminar registro</button>
             </sc-if>
             <button type="button" class="btn btn-secondary" onClick="{{ closeLightbox }}">Cerrar</button>
           </div>
@@ -142,28 +187,32 @@
       <div class="dialog" role="dialog" aria-modal="true" style="max-width:480px;width:min(92vw,480px)" onClick="{{ stopClick }}">
         <div class="dialog-title" style="margin-bottom:var(--space-4)">{{ formTitle }}</div>
         <div style="display:flex;flex-direction:column;gap:var(--space-4)">
-          <div class="seg" style="align-self:flex-start">
-            <label class="seg-opt"><input type="radio" name="worktype" checked="{{ formIsImagen }}" onChange="{{ setFormTypeImagen }}"> Imagen</label>
-            <label class="seg-opt"><input type="radio" name="worktype" checked="{{ formIsVideo }}" onChange="{{ setFormTypeVideo }}"> Video</label>
-            <label class="seg-opt"><input type="radio" name="worktype" checked="{{ formIsTexto }}" onChange="{{ setFormTypeTexto }}"> Texto</label>
-          </div>
-
-          <sc-if value="{{ formIsImagen }}" hint-placeholder-val="{{ true }}">
-            <div class="washed" style="aspect-ratio:4/3">
-              <img src="{{ formPreviewUrl }}" alt="" style="width:100%;height:100%;object-fit:contain;display:block">
-            </div>
-          </sc-if>
-          <sc-if value="{{ formIsVideo }}" hint-placeholder-val="{{ false }}">
-            <div class="washed" style="aspect-ratio:4/3">
-              <video src="{{ formPreviewUrl }}" controls style="width:100%;height:100%;object-fit:contain"></video>
-            </div>
-          </sc-if>
-
           <div class="field">
-            <label>{{ formFileLabel }}</label>
+            <label>Archivos (fotos, videos o texto .txt/.md)</label>
             <div class="file-field">
-              <input type="file" accept="{{ formAccept }}" onChange="{{ handleFormFile }}">
-              <p class="text-muted" style="margin:var(--space-2) 0 0;font-size:12px">{{ formFileNameLabel }}</p>
+              <input type="file" multiple accept="image/*,video/*,.txt,.md,text/plain" onChange="{{ handleFormFiles }}">
+              <p class="text-muted" style="margin:var(--space-2) 0 0;font-size:12px">Puedes elegir varios a la vez, o volver a elegir para agregar más.</p>
+              <sc-if value="{{ formHasItems }}" hint-placeholder-val="{{ false }}">
+                <div class="file-list">
+                  <sc-for list="{{ formItems }}" as="fi" hint-placeholder-count="0">
+                    <div class="file-row">
+                      <div class="file-row-thumb">
+                        <sc-if value="{{ fi.isImagen }}" hint-placeholder-val="{{ true }}">
+                          <img src="{{ fi.url }}" alt="">
+                        </sc-if>
+                        <sc-if value="{{ fi.isVideo }}" hint-placeholder-val="{{ false }}">
+                          <video src="{{ fi.url }}" muted preload="metadata"></video>
+                        </sc-if>
+                        <sc-if value="{{ fi.isTexto }}" hint-placeholder-val="{{ false }}">
+                          <span>TXT</span>
+                        </sc-if>
+                      </div>
+                      <span class="file-row-name">{{ fi.name }}</span>
+                      <button type="button" class="btn btn-icon btn-secondary" title="Quitar" onClick="{{ fi.remove }}">✕</button>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
             </div>
           </div>
 
@@ -190,8 +239,27 @@
           </sc-if>
         </div>
         <div class="dialog-actions">
+          <sc-if value="{{ formIsEdit }}" hint-placeholder-val="{{ false }}">
+            <button type="button" class="btn btn-secondary btn-danger" style="margin-right:auto" onClick="{{ removeFromForm }}">Eliminar registro</button>
+          </sc-if>
           <button type="button" class="btn btn-secondary" onClick="{{ closeForm }}">Cancelar</button>
           <button type="button" class="btn btn-primary" disabled="{{ formSaving }}" onClick="{{ saveForm }}">{{ formSaveLabel }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ confirmOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="position:fixed;z-index:1000" onClick="{{ cancelDelete }}">
+      <div class="dialog" role="dialog" aria-modal="true" style="max-width:380px;width:min(92vw,380px)" onClick="{{ stopClick }}">
+        <div class="dialog-title" style="margin-bottom:var(--space-2)">¿Eliminar este registro?</div>
+        <div class="dialog-body">Se borrará «{{ confirmTitle }}» junto con todos sus archivos. No se puede deshacer.</div>
+        <sc-if value="{{ confirmError }}" hint-placeholder-val="{{ false }}">
+          <p style="margin:var(--space-2) 0 0;font-size:13px;color:var(--color-accent-700)">{{ confirmError }}</p>
+        </sc-if>
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-secondary" onClick="{{ cancelDelete }}">Cancelar</button>
+          <button type="button" class="btn btn-primary" disabled="{{ deleting }}" onClick="{{ confirmDelete }}">{{ deleteLabel }}</button>
         </div>
       </div>
     </div>
@@ -231,9 +299,23 @@ function excerpt(text, max) {
   return t.slice(0, max).trim() + "…";
 }
 
+function fileKind(file) {
+  const name = (file.name || "").toLowerCase();
+  if ((file.type || "").startsWith("video/") || /\.(mp4|webm|mov|m4v)$/.test(name)) return "video";
+  if ((file.type || "").startsWith("text/") || /\.(txt|md)$/.test(name)) return "texto";
+  return "imagen";
+}
+
+function plural(n, one, many) {
+  return n + " " + (n === 1 ? one : many);
+}
+
+let newFileSeq = 0;
+
 class Component extends DCLogic {
   state = {
     activeIndex: null,
+    activeItemIndex: 0,
     isAdmin: false,
     adminPassword: null,
     loginOpen: false,
@@ -243,10 +325,13 @@ class Component extends DCLogic {
     formSaving: false,
     formError: null,
     editId: null,
-    formType: "imagen",
     formValues: { title: "", date: "", medium: "", note: "" },
-    formFile: null,
-    formPreviewUrl: null,
+    formExisting: [],
+    formRemoved: [],
+    formNewFiles: [],
+    confirmId: null,
+    deleting: false,
+    confirmError: null,
     entries: [],
     entriesLoaded: false
   };
@@ -291,44 +376,69 @@ class Component extends DCLogic {
     }
   };
 
-  setFormTypeImagen = () => this.setState({ formType: "imagen", formFile: null, formPreviewUrl: null });
-  setFormTypeVideo = () => this.setState({ formType: "video", formFile: null, formPreviewUrl: null });
-  setFormTypeTexto = () => this.setState({ formType: "texto", formFile: null, formPreviewUrl: null });
+  revokeNewFiles = () => {
+    this.state.formNewFiles.forEach((f) => { if (f.url) URL.revokeObjectURL(f.url); });
+  };
 
-  handleFormFile = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    if (this.state.formPreviewUrl && this.state.formPreviewUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(this.state.formPreviewUrl);
-    }
-    const preview = this.state.formType !== "texto" ? URL.createObjectURL(file) : null;
-    this.setState({ formFile: file, formPreviewUrl: preview });
+  handleFormFiles = (e) => {
+    const picked = Array.from((e.target.files) || []);
+    e.target.value = "";
+    if (!picked.length) return;
+    const added = picked.map((file) => {
+      const type = fileKind(file);
+      return { key: "n" + (++newFileSeq), file, type, url: type === "texto" ? null : URL.createObjectURL(file) };
+    });
+    this.setState(s => ({ formNewFiles: s.formNewFiles.concat(added) }));
+  };
+
+  removeNewFile = (key) => {
+    this.setState(s => {
+      const f = s.formNewFiles.find((x) => x.key === key);
+      if (f && f.url) URL.revokeObjectURL(f.url);
+      return { formNewFiles: s.formNewFiles.filter((x) => x.key !== key) };
+    });
+  };
+
+  removeExistingItem = (id) => {
+    this.setState(s => ({ formRemoved: s.formRemoved.concat(id) }));
   };
 
   openNewForm = () => {
+    this.revokeNewFiles();
     this.setState({
-      formOpen: true, editId: null, formType: "imagen", formError: null,
+      formOpen: true, editId: null, formError: null,
       formValues: { title: "", date: "", medium: "", note: "" },
-      formFile: null, formPreviewUrl: null
+      formExisting: [], formRemoved: [], formNewFiles: []
     });
   };
 
   openEditForm = (entry) => {
+    this.revokeNewFiles();
     this.setState({
-      formOpen: true, editId: entry.id, formType: entry.type || "imagen", formError: null,
+      formOpen: true, editId: entry.id, formError: null,
       formValues: { title: entry.title, date: entry.date, medium: entry.medium, note: entry.note || "" },
-      formFile: null, formPreviewUrl: entry.fileUrl || null
+      formExisting: entry.items || [], formRemoved: [], formNewFiles: []
     });
   };
 
-  removeEntry = (id) => {
-    if (!window.confirm("¿Eliminar este trabajo de la bitácora?")) return;
+  askDelete = (id) => this.setState({ confirmId: id, confirmError: null, deleting: false });
+  cancelDelete = () => { if (!this.state.deleting) this.setState({ confirmId: null, confirmError: null }); };
+
+  confirmDelete = () => {
+    const id = this.state.confirmId;
+    if (!id || this.state.deleting) return;
+    this.setState({ deleting: true, confirmError: null });
     fetch("/api/entries/" + id, { method: "DELETE", headers: { "x-admin-password": this.state.adminPassword || "" } })
       .then((r) => {
         if (!r.ok) throw new Error("delete failed");
         return this.loadEntries();
       })
-      .catch(() => window.alert("No se pudo eliminar el trabajo."));
+      .then(() => this.setState({ confirmId: null, deleting: false, activeIndex: null, formOpen: false }))
+      .catch(() => this.setState({ deleting: false, confirmError: "No se pudo eliminar. Intenta de nuevo." }));
+  };
+
+  removeFromForm = () => {
+    if (this.state.editId) this.askDelete(this.state.editId);
   };
 
   setTitleField = (e) => {
@@ -351,67 +461,117 @@ class Component extends DCLogic {
     this.setState(s => ({ formValues: { ...s.formValues, note: val } }));
   };
 
-  closeForm = () => this.setState({ formOpen: false });
+  closeForm = () => {
+    this.revokeNewFiles();
+    this.setState({ formOpen: false, formNewFiles: [] });
+  };
 
   saveForm = () => {
     if (this.state.formSaving) return;
-    const { formType, formValues, formFile, editId, adminPassword } = this.state;
+    const { formValues, formNewFiles, formRemoved, formExisting, editId, adminPassword } = this.state;
+    const keptCount = formExisting.filter((it) => !formRemoved.includes(it.id)).length + formNewFiles.length;
+    if (!(formValues.title || "").trim() && keptCount === 0) {
+      this.setState({ formError: "Agrega un título o al menos un archivo." });
+      return;
+    }
     this.setState({ formSaving: true, formError: null });
     const fd = new FormData();
-    fd.append("type", formType);
     fd.append("title", formValues.title || "");
     fd.append("date", formValues.date || "");
     fd.append("medium", formValues.medium || "");
     fd.append("note", formValues.note || "");
-    if (formFile) fd.append("file", formFile);
+    if (editId) fd.append("removeItems", JSON.stringify(formRemoved));
+    formNewFiles.forEach((f) => fd.append("files", f.file));
     const url = editId ? "/api/entries/" + editId : "/api/entries";
     const method = editId ? "PUT" : "POST";
     fetch(url, { method, headers: { "x-admin-password": adminPassword || "" }, body: fd })
       .then((r) => {
-        if (!r.ok) throw new Error("save failed");
+        if (!r.ok) return r.json().catch(() => ({})).then((j) => { throw new Error(j.error || "save failed"); });
         return this.loadEntries();
       })
-      .then(() => this.setState({ formOpen: false, formSaving: false }))
-      .catch(() => this.setState({ formSaving: false, formError: "No se pudo guardar. Intenta de nuevo." }));
+      .then(() => {
+        this.revokeNewFiles();
+        this.setState({ formOpen: false, formSaving: false, formNewFiles: [] });
+      })
+      .catch((err) => this.setState({
+        formSaving: false,
+        formError: err && err.message && err.message !== "save failed" ? err.message : "No se pudo guardar. Intenta de nuevo."
+      }));
   };
 
   renderVals() {
-    const { entries, isAdmin, formType, formFile, formPreviewUrl, editId } = this.state;
+    const { entries, isAdmin, editId, formExisting, formRemoved, formNewFiles } = this.state;
 
-    const mappedEntries = entries.map((e) => {
-      const type = e.type || "imagen";
-      const isTexto = type === "texto";
+    const mappedEntries = entries.map((e, idx) => {
+      const items = (e.items || []).map((it) => ({
+        ...it,
+        displayBody: (it.body || "").trim() ? it.body : "Este archivo de texto está vacío.",
+        isImagen: it.type === "imagen",
+        isVideo: it.type === "video",
+        isTexto: it.type === "texto"
+      }));
+      const thumb = items.find((it) => it.isImagen || it.isVideo) || null;
+      const firstText = items.find((it) => it.isTexto);
+      const extra = items.length - 1;
       return {
         ...e,
-        isImagen: type === "imagen",
-        isVideo: type === "video",
-        isTexto,
-        cardClass: "entry-card card elev-sm" + (isTexto ? " entry-card--text" : ""),
-        previewText: isTexto ? excerpt(e.body, 180) : e.note,
-        lightboxText: isTexto ? (e.body || "") : e.note,
-        open: () => this.setState({ activeIndex: entries.indexOf(e) }),
-        edit: (ev) => { ev.stopPropagation(); this.openEditForm(e); },
-        remove: (ev) => { ev.stopPropagation(); this.removeEntry(e.id); }
+        items,
+        hasThumb: !!thumb,
+        thumbUrl: thumb ? thumb.fileUrl : null,
+        thumbIsImagen: !!(thumb && thumb.isImagen),
+        thumbIsVideo: !!(thumb && thumb.isVideo),
+        countLabel: thumb && extra > 0 ? "+" + extra + " más" : false,
+        textCountLabel: !thumb && items.length > 1 ? plural(items.length, "archivo", "archivos") : false,
+        cardClass: "entry-card card elev-sm" + (thumb ? "" : " entry-card--text") + (isAdmin ? " entry-card--admin" : ""),
+        displayTitle: (e.title || "").trim() || "Sin título",
+        titleClass: (e.title || "").trim() ? "" : "is-placeholder",
+        previewText: e.note ? e.note
+          : firstText && (firstText.body || "").trim() ? excerpt(firstText.body, 180)
+          : items.length ? (firstText ? "Archivo de texto vacío (" + (firstText.fileName || "sin nombre") + ")" : "")
+          : "Registro sin archivos",
+        open: () => this.setState({ activeIndex: idx, activeItemIndex: 0 }),
+        edit: (ev) => { ev.stopPropagation(); this.setState({ activeIndex: null }); this.openEditForm(e); },
+        remove: (ev) => { ev.stopPropagation(); this.askDelete(e.id); }
       };
     });
 
     const activeEntry = this.state.activeIndex != null && mappedEntries[this.state.activeIndex]
       ? mappedEntries[this.state.activeIndex] : false;
+    const activeItems = activeEntry ? activeEntry.items : [];
+    const nItems = activeItems.length;
+    const itemIdx = nItems ? ((this.state.activeItemIndex % nItems) + nItems) % nItems : 0;
+    const activeItem = nItems ? activeItems[itemIdx] : false;
 
-    const formIsImagen = formType === "imagen";
-    const formIsVideo = formType === "video";
-    const formIsTexto = formType === "texto";
-    const formAccept = formIsTexto ? ".txt,.md,text/plain" : formIsVideo ? "video/*" : "image/*";
-    const formFileLabel = formIsTexto ? "Archivo de texto (.txt, .md)" : formIsVideo ? "Archivo de video" : "Foto";
-    const formFileNameLabel = formFile
-      ? ("Archivo seleccionado: " + formFile.name)
-      : (editId ? "Ya hay un archivo guardado; sube uno nuevo para reemplazarlo." : "Ningún archivo seleccionado todavía.");
+    const keptExisting = formExisting.filter((it) => !formRemoved.includes(it.id));
+    const formItems = keptExisting.map((it) => ({
+      name: it.fileName || "archivo",
+      url: it.fileUrl,
+      isImagen: it.type === "imagen",
+      isVideo: it.type === "video",
+      isTexto: it.type === "texto",
+      remove: () => this.removeExistingItem(it.id)
+    })).concat(formNewFiles.map((f) => ({
+      name: f.file.name + " (nuevo)",
+      url: f.url,
+      isImagen: f.type === "imagen",
+      isVideo: f.type === "video",
+      isTexto: f.type === "texto",
+      remove: () => this.removeNewFile(f.key)
+    })));
+    const allText = formItems.length > 0 && formItems.every((fi) => fi.isTexto);
+
+    const confirmEntry = this.state.confirmId ? entries.find((e) => e.id === this.state.confirmId) : null;
 
     return {
       entries: mappedEntries,
       entryCount: mappedEntries.length,
       showLoading: !this.state.entriesLoaded,
       activeEntry,
+      activeItem,
+      hasMultipleItems: nItems > 1,
+      itemCounter: (itemIdx + 1) + " / " + nItems,
+      prevItem: () => this.setState({ activeItemIndex: itemIdx - 1 }),
+      nextItem: () => this.setState({ activeItemIndex: itemIdx + 1 }),
       showIntro: !activeEntry,
       isAdmin,
       toggleAdmin: this.toggleAdmin,
@@ -424,24 +584,25 @@ class Component extends DCLogic {
       submitLogin: this.submitLogin,
       closeLightbox: () => this.setState({ activeIndex: null }),
       stopClick: (e) => e.stopPropagation(),
+      confirmOpen: !!this.state.confirmId,
+      confirmTitle: confirmEntry ? (confirmEntry.title || "sin título") : "",
+      confirmError: this.state.confirmError,
+      deleting: this.state.deleting,
+      deleteLabel: this.state.deleting ? "Eliminando…" : "Eliminar",
+      cancelDelete: this.cancelDelete,
+      confirmDelete: this.confirmDelete,
       formOpen: this.state.formOpen,
+      formIsEdit: editId != null,
+      removeFromForm: this.removeFromForm,
       formSaving: this.state.formSaving,
       formSaveLabel: this.state.formSaving ? "Guardando…" : "Guardar",
       formError: this.state.formError,
       formTitle: editId != null ? "Editar trabajo" : "Añadir trabajo",
       formValues: this.state.formValues,
-      formIsImagen,
-      formIsVideo,
-      formIsTexto,
-      formShowNote: !formIsTexto,
-      formAccept,
-      formFileLabel,
-      formFileNameLabel,
-      formPreviewUrl,
-      setFormTypeImagen: this.setFormTypeImagen,
-      setFormTypeVideo: this.setFormTypeVideo,
-      setFormTypeTexto: this.setFormTypeTexto,
-      handleFormFile: this.handleFormFile,
+      formItems,
+      formHasItems: formItems.length > 0,
+      formShowNote: !allText,
+      handleFormFiles: this.handleFormFiles,
       openNewForm: this.openNewForm,
       closeForm: this.closeForm,
       saveForm: this.saveForm,
